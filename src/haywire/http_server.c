@@ -20,6 +20,7 @@
 #include "server_stats.h"
 #include "trie/radix.h"
 #include "trie/route_compare_method.h"
+#include "mempool.h"
 
 #define UVERR(err, msg) fprintf(stderr, "%s: %s\n", msg, uv_strerror(err))
 #define CHECK(r, msg) \
@@ -35,16 +36,27 @@ static http_parser_settings parser_settings;
 
 rxt_node *routes = NULL;
 
+/* TODO: Put this somewhere sane: */
+#define MAX_CONCURRENT_HTTP_REQUESTS   2048
+
+static http_request_context http_request_contexts[MAX_CONCURRENT_HTTP_REQUESTS];
+static mempool http_request_contexts_pool;
+
+void http_request_context_pool_init(void)
+{
+    MEMPOOL_INIT_ARRAY(&http_request_contexts_pool, http_request_contexts);
+}
+
 http_request_context* create_http_context()
 {
-    http_request_context* context = (http_request_context *)malloc(sizeof *context);
+    http_request_context* context = mempool_alloc(&http_request_contexts_pool);
     INCREMENT_STAT(stat_connections_created_total);
     return context;
 }
 
 void free_http_context(http_request_context* context)
 {
-    free(context);
+    mempool_free(&http_request_contexts_pool, context);
     INCREMENT_STAT(stat_connections_destroyed_total);
 }
 
@@ -81,6 +93,7 @@ int hw_http_open(char *ipaddress, int port)
     (void)uv_tcp_init(uv_loop, &server);
 
     (void)uv_tcp_bind(&server, uv_ip4_addr(ipaddress, port));
+    http_request_context_pool_init();
     uv_listen((uv_stream_t*)&server, 128, http_stream_on_connect);
 
     printf("Listening on 0.0.0.0:8000\n");
