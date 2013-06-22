@@ -99,14 +99,14 @@ char* hw_get_header(http_request* request, char* key)
 
 int http_request_on_message_begin(http_parser* parser)
 {
-    http_request_context *context = (http_request_context *)parser->data;
+    http_request_context *context = http_request_context_of_parser(parser);
     create_http_request(context);
     return 0;
 }
 
 int http_request_on_url(http_parser *parser, const char *at, size_t length)
 {
-    http_request_context *context = (http_request_context *)parser->data;
+    http_request_context *context = http_request_context_of_parser(parser);
     char *data = (char *)malloc(sizeof(char) * length + 1);
 
     strncpy(data, at, length);
@@ -119,7 +119,7 @@ int http_request_on_url(http_parser *parser, const char *at, size_t length)
 
 int http_request_on_header_field(http_parser *parser, const char *at, size_t length)
 {
-    http_request_context *context = (http_request_context *)parser->data;
+    http_request_context *context = http_request_context_of_parser(parser);
     int i = 0;
 
     if (last_was_value && context->current_header_key_length > 0)
@@ -144,7 +144,7 @@ int http_request_on_header_field(http_parser *parser, const char *at, size_t len
 
 int http_request_on_header_value(http_parser *parser, const char *at, size_t length)
 {
-    http_request_context *context = (http_request_context *)parser->data;
+    http_request_context *context = http_request_context_of_parser(parser);
 
     if (!last_was_value && context->current_header_value_length > 0)
     {
@@ -160,7 +160,7 @@ int http_request_on_header_value(http_parser *parser, const char *at, size_t len
 
 int http_request_on_headers_complete(http_parser* parser)
 {
-    http_request_context *context = (http_request_context *)parser->data;
+    http_request_context *context = http_request_context_of_parser(parser);
     int i = 0;
 
     if (context->current_header_key_length > 0)
@@ -190,7 +190,7 @@ int http_request_on_body(http_parser *parser, const char *at, size_t length)
 int http_request_on_message_complete(http_parser* parser)
 {
     char *response;
-    http_request_context *context = (http_request_context *)parser->data;
+    http_request_context *context = http_request_context_of_parser(parser);
     http_request_callback callback =
       (http_request_callback)rxt_get_custom(context->request.url, routes, hw_route_compare_method);
     if (callback != NULL)

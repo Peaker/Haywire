@@ -2,6 +2,15 @@
 #include "uv.h"
 #include "http_parser.h"
 #include "http_request.h"
+#include <stddef.h>             /* offsetof */
+
+/* Common mechanism, should sit in some very common header file: */
+#ifndef containerof
+#define containerof(ptr, typename, memberpath) \
+  ((typename *)((char*)(ptr) - offsetof(typename, memberpath)))
+#endif
+
+#define http_request_context_of_parser(ptr)  containerof(ptr, http_request_context, parser)
 
 typedef struct
 {

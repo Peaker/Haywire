@@ -95,7 +95,6 @@ void http_stream_on_connect(uv_stream_t* stream, int status)
     uv_tcp_init(uv_loop, &context->stream);
     http_parser_init(&context->parser, HTTP_REQUEST);
 
-    context->parser.data = context;
     context->stream.data = context;
 
     (void)uv_accept(stream, (uv_stream_t*)&context->stream);
@@ -143,14 +142,14 @@ void http_stream_on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf)
 
 int http_server_write_response(http_parser *parser, char *response)
 {
-    http_request_context *context = (http_request_context *)parser->data;
+    http_request_context *context = http_request_context_of_parser(parser);
     uv_write_t* write_req = (uv_write_t *)malloc(sizeof(*write_req) + sizeof(uv_buf_t));
     uv_buf_t *resbuf = (uv_buf_t *)(write_req+1);
 
     resbuf->base = response;
     resbuf->len = strlen(response) + 1;
 
-    write_req->data = parser->data;
+    write_req->data = context;
 
     (void)uv_write(write_req, (uv_stream_t*)&context->stream, resbuf, 1, http_server_after_write);
 
