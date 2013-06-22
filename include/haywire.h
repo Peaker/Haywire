@@ -2,7 +2,7 @@
 
 typedef struct
 {
-	char *url;
+    char *url;
     void *headers;
     char *body;
 } http_request;
