@@ -16,6 +16,7 @@ static const char response[] =
 char *get_root(http_request *request)
 {
     char* value = hw_get_header(request, "user-agent");
+    (void)value; /* Avoid warning about unused var */
     /* printf("HEADER: %s\n", value); */
     return (char *)response;
 }
@@ -26,4 +27,5 @@ int main()
 
     hw_http_add_route(route, get_root);
     hw_http_open("0.0.0.0", 8000);
+    return 0;
 }

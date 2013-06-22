@@ -67,8 +67,6 @@ void hw_http_add_route(char *route, http_request_callback callback)
 
 int hw_http_open(char *ipaddress, int port)
 {
-    int r;
-
 #ifdef DEBUG
     char route[] = "/stats";
     hw_http_add_route(route, get_server_stats);
@@ -81,15 +79,15 @@ int hw_http_open(char *ipaddress, int port)
     parser_settings.on_message_begin = http_request_on_message_begin;
     parser_settings.on_message_complete = http_request_on_message_complete;
     parser_settings.on_url = http_request_on_url;
-    
+
 #ifdef PLATFORM_POSIX
     signal(SIGPIPE, SIG_IGN);
 #endif // PLATFORM_POSIX
-  
-    uv_loop = uv_default_loop();
-    r = uv_tcp_init(uv_loop, &server);
 
-    r = uv_tcp_bind(&server, uv_ip4_addr(ipaddress, port));
+    uv_loop = uv_default_loop();
+    (void)uv_tcp_init(uv_loop, &server);
+
+    (void)uv_tcp_bind(&server, uv_ip4_addr(ipaddress, port));
     uv_listen((uv_stream_t*)&server, 128, http_stream_on_connect);
 
     printf("Listening on 0.0.0.0:8000\n");
@@ -100,8 +98,6 @@ int hw_http_open(char *ipaddress, int port)
 
 void http_stream_on_connect(uv_stream_t* stream, int status)
 {
-    int r;
-
     http_request_context* context = create_http_context();
     uv_tcp_init(uv_loop, &context->stream);
     http_parser_init(&context->parser, HTTP_REQUEST);
@@ -109,8 +105,8 @@ void http_stream_on_connect(uv_stream_t* stream, int status)
     context->parser.data = context;
     context->stream.data = context;
 
-    r = uv_accept(stream, (uv_stream_t*)&context->stream);
-    r = uv_read_start((uv_stream_t*)&context->stream, http_stream_on_alloc, http_stream_on_read);
+    (void)uv_accept(stream, (uv_stream_t*)&context->stream);
+    (void)uv_read_start((uv_stream_t*)&context->stream, http_stream_on_alloc, http_stream_on_read);
 }
 
 uv_buf_t http_stream_on_alloc(uv_handle_t* client, size_t suggested_size)
@@ -132,18 +128,18 @@ void http_stream_on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf)
     size_t parsed;
     http_request_context *context = (http_request_context *)tcp->data;
 
-    if (nread >= 0) 
+    if (nread >= 0)
     {
         parsed = http_parser_execute(&context->parser, &parser_settings, buf.base, nread);
-        if (parsed < nread) 
+        if (parsed < nread)
         {
             //uv_close((uv_handle_t*) &client->handle, http_stream_on_close);
         }
-    } 
-    else 
+    }
+    else
     {
         uv_err_t err = uv_last_error(uv_loop);
-        if (err.code != UV_EOF) 
+        if (err.code != UV_EOF)
         {
             //UVERR(err, "read");
             if (context->request != NULL)
@@ -156,9 +152,8 @@ void http_stream_on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf)
     free(buf.base);
 }
 
-int http_server_write_response(http_parser *parser, char *response) 
+int http_server_write_response(http_parser *parser, char *response)
 {
-    int r;
     http_request_context *context = (http_request_context *)parser->data;
     uv_write_t* write_req = (uv_write_t *)malloc(sizeof(*write_req) + sizeof(uv_buf_t));
     uv_buf_t *resbuf = (uv_buf_t *)(write_req+1);
@@ -168,7 +163,7 @@ int http_server_write_response(http_parser *parser, char *response)
 
     write_req->data = parser->data;
 
-    r = uv_write(write_req, (uv_stream_t*)&context->stream, resbuf, 1, http_server_after_write);
+    (void)uv_write(write_req, (uv_stream_t*)&context->stream, resbuf, 1, http_server_after_write);
 
     return 0;
 }

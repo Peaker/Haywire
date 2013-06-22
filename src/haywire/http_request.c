@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>              /* tolower */
 #include "haywire.h"
 #include "http_request.h"
 #include "http_parser.h"
@@ -29,12 +30,15 @@ KHASH_MAP_INIT_STR(headers, char*)
 
 void print_headers(http_request* request)
 {
-    char* k;
-    char* v;
+    const char* k;
+    const char* v;
 
     khash_t(headers) *h = request->headers;
     kh_foreach(h, k, v, { printf("KEY: %s VALUE: %s\n", k, v); });
 }
+
+/* Compilation with -ansi doesn't have strdup in string.h :( */
+char *strdup(const char *s);
 
 void set_header(http_request* request, char* name, char* value)
 {
@@ -72,13 +76,13 @@ http_request* create_http_request(http_request_context* context)
 
 void free_http_request(http_request* request)
 {
-    khash_t(headers) *h = request->headers;    
-    char* k;
-    char* v;
-    kh_foreach(h, k, v, { free(k); free(v); });
+    khash_t(headers) *h = request->headers;
+    const char* k;
+    const char* v;
+    kh_foreach(h, k, v, { free((char *)k); free((char *)v); });
     kh_destroy(headers, request->headers);
     free(request->url);
-    free(request->body);    
+    free(request->body);
     free(request);
     INCREMENT_STAT(stat_requests_destroyed_total);
 }
@@ -116,8 +120,6 @@ int http_request_on_header_field(http_parser *parser, const char *at, size_t len
 
     if (last_was_value && context->current_header_key_length > 0)
     {
-        char *key;
-
         // Save last read header key/value pair.
         for (i = 0; context->current_header_key[i]; i++)
         {
