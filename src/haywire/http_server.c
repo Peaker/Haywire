@@ -37,20 +37,13 @@ rxt_node *routes = NULL;
 
 http_request_context* create_http_context()
 {
-    http_request_context* context = (http_request_context *)malloc(sizeof(http_request_context));
-    context->request = NULL;
+    http_request_context* context = (http_request_context *)malloc(sizeof *context);
     INCREMENT_STAT(stat_connections_created_total);
     return context;
 }
 
 void free_http_context(http_request_context* context)
 {
-    /*
-    if (context->request != NULL)
-    {
-        free_http_request(context->request);
-    }
-    */
     free(context);
     INCREMENT_STAT(stat_connections_destroyed_total);
 }
@@ -142,10 +135,6 @@ void http_stream_on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf)
         if (err.code != UV_EOF)
         {
             //UVERR(err, "read");
-            if (context->request != NULL)
-            {
-                free_http_request(context->request);
-            }
         }
         uv_close((uv_handle_t*) &context->stream, http_stream_on_close);
     }

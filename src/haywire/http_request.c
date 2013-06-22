@@ -45,6 +45,12 @@ void set_header(http_request* request, char* name, char* value)
     int ret;
     khiter_t k;
     khash_t(headers) *h = request->headers;
+    /* TODO: To avoid one of the 2 strdup allocations here, might want
+     * to allocate a single allocation for the total header size and
+     * assign both name/value into it. Also, use the same "trick" of
+     * allocating some static number of headers of some static size to
+     * have an allocation-free common case.
+     */
     k = kh_put(headers, h, strdup(name), &ret);
     kh_value(h, k) = strdup(value);
 }
@@ -62,16 +68,15 @@ void* get_header(http_request* request, char* name)
     return val;
 }
 
-http_request* create_http_request(http_request_context* context)
+void create_http_request(http_request_context* context)
 {
-    http_request* request = malloc(sizeof(http_request));
-    request->url = NULL;
-    request->headers = kh_init(headers);
-    request->body = NULL;
+    context->request.url = NULL;
+    context->request.headers = kh_init(headers);
+    /* NOTE: It doesn't seem anyone ever writes anything else to request.body! */
+    context->request.body = NULL;
     context->current_header_key_length = 0;
     context->current_header_value_length = 0;
     INCREMENT_STAT(stat_requests_created_total);
-    return request;
 }
 
 void free_http_request(http_request* request)
@@ -82,8 +87,7 @@ void free_http_request(http_request* request)
     kh_foreach(h, k, v, { free((char *)k); free((char *)v); });
     kh_destroy(headers, request->headers);
     free(request->url);
-    free(request->body);
-    free(request);
+    free(request->body);        /* <-- TODO: This doesn't do anything. Nobody ever uses body */
     INCREMENT_STAT(stat_requests_destroyed_total);
 }
 
@@ -96,7 +100,7 @@ char* hw_get_header(http_request* request, char* key)
 int http_request_on_message_begin(http_parser* parser)
 {
     http_request_context *context = (http_request_context *)parser->data;
-    context->request = create_http_request(context);
+    create_http_request(context);
     return 0;
 }
 
@@ -108,7 +112,7 @@ int http_request_on_url(http_parser *parser, const char *at, size_t length)
     strncpy(data, at, length);
     data[length] = '\0';
 
-    context->request->url = data;
+    context->request.url = data;
 
     return 0;
 }
@@ -126,7 +130,7 @@ int http_request_on_header_field(http_parser *parser, const char *at, size_t len
             context->current_header_key[i] = tolower(context->current_header_key[i]);
         }
 
-        set_header(context->request, context->current_header_key, context->current_header_value);
+        set_header(&context->request, context->current_header_key, context->current_header_value);
 
         /* Start of a new header */
         context->current_header_key_length = 0;
@@ -168,7 +172,7 @@ int http_request_on_headers_complete(http_parser* parser)
             {
                 context->current_header_key[i] = tolower(context->current_header_key[i]);
             }
-            set_header(context->request, context->current_header_key, context->current_header_value);
+            set_header(&context->request, context->current_header_key, context->current_header_value);
         }
         context->current_header_key[context->current_header_key_length] = '\0';
         context->current_header_value[context->current_header_value_length] = '\0';
@@ -187,10 +191,11 @@ int http_request_on_message_complete(http_parser* parser)
 {
     char *response;
     http_request_context *context = (http_request_context *)parser->data;
-    http_request_callback callback = (http_request_callback)rxt_get_custom(context->request->url, routes, hw_route_compare_method);
+    http_request_callback callback =
+      (http_request_callback)rxt_get_custom(context->request.url, routes, hw_route_compare_method);
     if (callback != NULL)
     {
-        response = callback(context->request);
+        response = callback(&context->request);
         http_server_write_response(parser, response);
     }
     else
@@ -199,7 +204,5 @@ int http_request_on_message_complete(http_parser* parser)
         http_server_write_response(parser, (char *)response_404);
     }
 
-    free_http_request(context->request);
-    context->request = NULL;
     return 0;
 }
