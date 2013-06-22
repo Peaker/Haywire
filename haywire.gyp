@@ -41,6 +41,8 @@
 
         'sources': [
           'include/haywire.h',
+          'src/haywire/mempool.c',
+          'src/haywire/mempool.h',
           'src/haywire/http_parser.h',
           'src/haywire/http_parser.c',
           'src/haywire/http_request.h',
