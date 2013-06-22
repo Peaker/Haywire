@@ -146,21 +146,22 @@ void http_stream_on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf)
 int http_server_write_response(http_parser *parser, char *response)
 {
     http_request_context *context = http_request_context_of_parser(parser);
-    uv_write_t* write_req = (uv_write_t *)malloc(sizeof(*write_req) + sizeof(uv_buf_t));
-    uv_buf_t *resbuf = (uv_buf_t *)(write_req+1);
 
-    resbuf->base = response;
-    resbuf->len = strlen(response) + 1;
+    context->write_resbuf.base = response;
+    context->write_resbuf.len = strlen(response) + 1;
 
-    write_req->data = context;
+    /* TODO: No need for the .data part at all, since we have
+     * struct-contains relationship here and can just use
+     * containerof. uv is being slightly wasteful here */
+    context->write_req.data = context;
 
-    (void)uv_write(write_req, (uv_stream_t*)&context->stream, resbuf, 1, http_server_after_write);
+    (void)uv_write(&context->write_req, (uv_stream_t*)&context->stream, &context->write_resbuf, 1, http_server_after_write);
 
     return 0;
 }
 
-void http_server_after_write(uv_write_t* req, int status)
+void http_server_after_write(uv_write_t *req, int status)
 {
+    //http_request_context *context = containerof(req, http_request_context, write_req);
     //uv_close((uv_handle_t*)req->handle, on_close);
-    free(req);
 }

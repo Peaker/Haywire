@@ -17,6 +17,7 @@ typedef struct
     uv_tcp_t stream;
     http_parser parser;
     uv_write_t write_req;
+    uv_buf_t write_resbuf;
     http_request request;
     char current_header_key[1024];
     int current_header_key_length;
