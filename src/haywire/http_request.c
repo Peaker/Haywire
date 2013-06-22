@@ -107,8 +107,24 @@ int http_request_on_message_begin(http_parser* parser)
 int http_request_on_url(http_parser *parser, const char *at, size_t length)
 {
     http_request_context *context = http_request_context_of_parser(parser);
+    /* TODO: Avoid this malloc by storing, inside the
+     * http_request_context, a string type that has some minimum size
+     * allocated statically (e.g: 128 or 256 bytes) and a ptr for a
+     * dynamic malloc only if necessary. This can avoid a malloc for
+     * most requests. */
+    /* NOTE: sizeof(char) is defined to be 1 by the standard... little
+     * point in using it as a multiplier. Also: Casting result of
+     * malloc is C++ practice and can cover up a missing prototype
+     * error in C. */
     char *data = (char *)malloc(sizeof(char) * length + 1);
 
+    /* NOTE: strncpy is good to avoid in general. It doesn't guarantee
+     * truncation but does write the whole string even when
+     * unnecessary :( Even memcpy is better than strncpy for pretty
+     * much all purposes. Ideally you could strlcpy if available (or
+     * put it in a lib somewhere). That way you can also guarantee
+     * truncation once, instead of having to do so in every code pos,
+     * such as here: */
     strncpy(data, at, length);
     data[length] = '\0';
 

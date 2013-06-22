@@ -103,6 +103,10 @@ void http_stream_on_connect(uv_stream_t* stream, int status)
 
 uv_buf_t http_stream_on_alloc(uv_handle_t* client, size_t suggested_size)
 {
+    /* TODO: Use a static string as mentioned above for the url
+     * allocation. Here you might even ignore the suggested size if
+     * you have some static size you can preallocate with each
+     * http_request_context */
     uv_buf_t buf;
     buf.base = (char *)malloc(suggested_size);
     buf.len = suggested_size;
