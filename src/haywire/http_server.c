@@ -121,12 +121,11 @@ void http_stream_on_close(uv_handle_t* handle)
 
 void http_stream_on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf)
 {
-    size_t parsed;
     http_request_context *context = (http_request_context *)tcp->data;
 
     if (nread >= 0)
     {
-        parsed = http_parser_execute(&context->parser, &parser_settings, buf.base, nread);
+        size_t parsed = http_parser_execute(&context->parser, &parser_settings, buf.base, nread);
         if (parsed < nread)
         {
             //uv_close((uv_handle_t*) &client->handle, http_stream_on_close);
